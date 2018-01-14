@@ -27,7 +27,7 @@ abstract class OperationNode : Node() {
 
     abstract val valuef: (List<Double>) -> Double
 
-    abstract val gradientf: (Double, Double, List<Double>) -> Double
+    abstract val gradientf: (Double, Double) -> Double
 
     fun put(node: Node) = node.also { linkParent(it) }
 
@@ -56,7 +56,7 @@ abstract class OperationNode : Node() {
 
     private fun gradient(childGradientValue: Double, result: MutableList<RootNode> = ArrayList()): List<RootNode> {
         parents.forEach { parent ->
-            parent.gradientValue += gradientf(childGradientValue, parent.value, inputValues)
+            parent.gradientValue += gradientf(childGradientValue, parent.value)
 
             when (parent) {
                 is RootNode -> result.indexOf(parent).let { if (it == -1) result.add(parent) }
@@ -67,7 +67,7 @@ abstract class OperationNode : Node() {
         return result
     }
 
-    override fun toString(): String = "${super.toString()}" + if (parents.isNotEmpty()) {
+    override fun toString(): String = super.toString() + if (parents.isNotEmpty()) {
         ", inputValues: $inputValues, child: ${parents.joinToString(separator = ", ") { "$it" }}}"
     } else {
         "}"
@@ -78,14 +78,14 @@ class AdditionNode : OperationNode() {
 
     override val valuef: (List<Double>) -> Double = addf
 
-    override val gradientf: (Double, Double, List<Double>) -> Double = { childGradientValue, _, _ -> childGradientValue }
+    override val gradientf: (Double, Double) -> Double = { childGradientValue, _ -> childGradientValue }
 }
 
 class MultiplicationNode : OperationNode() {
 
     override val valuef: (List<Double>) -> Double = multiplyf
 
-    override val gradientf: (Double, Double, List<Double>) -> Double = { childGradientValue, parentValue, inputValues ->
+    override val gradientf: (Double, Double) -> Double = { childGradientValue, parentValue ->
         inputValues.filterFirst { it != parentValue }.reduce { l, r -> l * r }.let { childGradientValue * it }
     }
 }

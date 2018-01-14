@@ -8,41 +8,55 @@ import java.util.zip.GZIPInputStream
 /**
  * Created by cesarchretien on 18-12-17.
  */
-fun main(args: Array<String>) {
 
-    val file = File("./src/train-images-idx3-ubyte.gz")
+fun data(): List<Pair<DoubleArray, DoubleArray>> {
 
-    val fileInputStream = FileInputStream(file)
-    val gzipInputStream = GZIPInputStream(fileInputStream)
+    val images = File("./src/train-images-idx3-ubyte.gz")
+    val imagesInputStream = FileInputStream(images)
+    val gzipImagesInputStream = GZIPInputStream(imagesInputStream)
 
-    gzipInputStream.readBytes().iterator().apply {
-        val magicNumber = readNextInt()
-        val numOfImages = readNextInt()
-        val numOfRows = readNextInt()
-        val numOfColumns = readNextInt()
-        println("magic number: $magicNumber")
-        println("number of images: $numOfImages")
-        println("number of rows: $numOfRows")
-        println("number of columns: $numOfColumns")
+    val imgl = gzipImagesInputStream.readBytes().iterator().let { inputStream ->
+        val magicNumber = inputStream.readNextInt()
+        val numOfImages = inputStream.readNextInt()
+        val numOfRows = inputStream.readNextInt()
+        val numOfColumns = inputStream.readNextInt()
 
-        var curCol = 0
-        var curRow = 0
+        val arraySize = numOfColumns * numOfRows
+        val imageList: Array<DoubleArray> = Array(numOfImages, { DoubleArray(arraySize) })
 
-        forEachRemaining { byte ->
-            val unsigned = byte.toInt() and 0xFF
-            print("${if (unsigned < 10) "  " else if (unsigned < 100) " " else ""}$unsigned")
-
-            if (++curCol % numOfColumns == 0) {
-                println()
-                curCol = 0
-                if (++curRow % numOfRows == 0) {
-                    println()
-                    curRow = 0
-                }
+        imageList.apply {
+            var imgIndex = 0
+            inputStream.forEachRemainingIndexed { index, byte ->
+                this[imgIndex][index % arraySize] = (byte.toInt() and 0xFF).toDouble()
+                if (index != 0 && index % arraySize == 0) ++imgIndex
             }
         }
     }
 
+    val labels = File("./src/train-labels-idx1-ubyte.gz")
+    val labelsInputStream = FileInputStream(labels)
+    val gzipLabelsInputStream = GZIPInputStream(labelsInputStream)
+
+    val lbll = gzipLabelsInputStream.readBytes().iterator().let { inputStream ->
+        val magicNumber = inputStream.readNextInt()
+        val numOfItems = inputStream.readNextInt()
+
+        val labelList: Array<DoubleArray> = Array(numOfItems, { DoubleArray(10) })
+
+        labelList.apply {
+            inputStream.forEachRemainingIndexed { index, byte ->
+                labelList[index][byte.toInt() and 0xFF] = 1.0
+            }
+        }
+    }
+
+    return imgl.zip(lbll)
+}
+
+fun <T> Iterator<T>.forEachRemainingIndexed(f: (Int, T) -> Unit) {
+    var index = 0
+    while (this.hasNext())
+        f(index++, this.next())
 }
 
 fun ByteIterator.readNextInt(): Int = (nextByte().toInt() and 0xFF).shl(24) or
