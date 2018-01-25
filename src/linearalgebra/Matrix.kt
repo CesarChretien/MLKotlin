@@ -1,6 +1,7 @@
 package linearalgebra
 
-import kotlinx.coroutines.experimental.*
+import kotlinx.coroutines.experimental.async
+import kotlinx.coroutines.experimental.runBlocking
 
 /**
  * Created by cesarchretien on 18-12-17.
@@ -9,11 +10,8 @@ class Matrix(val rows: Int, val columns: Int) {
 
     private val elements: DoubleArray = DoubleArray(rows * columns)
 
-    operator fun get(row: Int, column: Int) = if (row in 0 until rows && column in 0 until columns) {
-        elements[column + columns * row]
-    } else {
-        throw IndexOutOfBoundsException("Make message")
-    }
+    operator fun get(row: Int, column: Int) = elements[column + columns * row]
+
 
     operator fun set(row: Int, column: Int, value: Double) = if (row in 0 until rows && column in 0 until columns) {
         elements[column + columns * row] = value
@@ -41,7 +39,7 @@ class Matrix(val rows: Int, val columns: Int) {
             runBlocking {
                 (0 until elements.size).pForEach { index ->
                     val (row, col) = index.toRowCol()
-                    elements[index] = (0 until length).sumByDouble { this@Matrix[row, it] * other[it, col] }
+                    elements[index] = (0 until this@Matrix.columns).sumByDouble { this@Matrix[row, it] * other[it, col] }
                 }
             }
         }
@@ -49,13 +47,15 @@ class Matrix(val rows: Int, val columns: Int) {
         throw Exception("Dimensions don't match.")
     }
 
-    fun timesAndApply(other: Matrix, function: (Double) -> Double) = if (this.columns == other.rows) {
-        val length = this.rows
-        Matrix(length, other.columns).apply {
+    operator fun times(other: Double): Matrix = Matrix(rows, columns).apply {
+        elements.map { it * other }
+    }
+
+    operator fun times(other: DoubleArray): DoubleArray = if (this.columns == other.size) {
+        DoubleArray(this.rows).apply {
             runBlocking {
-                (0 until elements.size).pForEach { index ->
-                    val (row, col) = index.toRowCol()
-                    elements[index] = (0 until length).sumByDouble { function(this@Matrix[row, it] * other[it, col]) }
+                (0 until this@apply.size).pmap {
+                    this@apply[it] = this@Matrix.getRow(it).zip(other).map { (l, r) -> l * r }.sum()
                 }
             }
         }
@@ -64,8 +64,13 @@ class Matrix(val rows: Int, val columns: Int) {
     }
 
     fun applyToValues(function: (Double) -> Double): Matrix {
-        return Matrix(rows, columns).apply {
-            elements.forEachIndexed { index, value -> elements[index] = function(value) }
+        elements.forEachIndexed { index, value -> elements[index] = function(value) }
+        return this
+    }
+
+    fun transpose(): Matrix = Matrix(this.columns, this.rows).apply {
+        forEachIndexed { row, col, _ ->
+            this[row, col] = this@Matrix[col, row]
         }
     }
 

@@ -1,6 +1,7 @@
 package network
 
 import app.data
+import java.util.*
 
 /**
  * Created by cesarchretien on 24-12-17.
@@ -8,13 +9,28 @@ import app.data
 fun main(args: Array<String>) {
     val inputoutputs = data()
 
-    for ((input, output) in inputoutputs) {
-        createSystem(input, output)
+
+    val listy = ArrayList<ArrayList<List<Node>>>()
+
+    var f = 0
+    val s = inputoutputs.size
+    for ((input, output) in inputoutputs.subList(0, 500)) {
+        println("Creating system ${++f} out of $s")
+        listy.add(createSystem(input, output, 15, 15))
     }
+
+    listy.forEach {
+        it[it.size - 1].forEach {
+            it.value()
+            it as OperationNode
+            it.gradient()
+        }
+    }
+
 
 }
 
-fun createSystem(input: DoubleArray, output: DoubleArray, vararg hiddenLayerSizes: Int) {
+fun createSystem(input: DoubleArray, output: DoubleArray, vararg hiddenLayerSizes: Int): ArrayList<List<Node>> {
     val numOfWeightBiasSets = hiddenLayerSizes.size + 1
     val listOfWeights = ArrayList<List<RootNode>>()
     val listOfBiases = ArrayList<List<RootNode>>()
@@ -33,6 +49,7 @@ fun createSystem(input: DoubleArray, output: DoubleArray, vararg hiddenLayerSize
     }
 
     val inputroots = input.map { RootNode(it) }
+    val results = ArrayList<List<Node>>()
 
     (0 until numOfWeightBiasSets).forEach { i ->
         val outputNodeSize = when (i) {
@@ -40,11 +57,19 @@ fun createSystem(input: DoubleArray, output: DoubleArray, vararg hiddenLayerSize
             else -> hiddenLayerSizes[i]
         }
 
-        for (index in (0 until outputNodeSize)) {
-            val start = index * inputroots.size
-            val end = start + inputroots.size
+        val endNodes = ArrayList<Node>(outputNodeSize)
 
-            val inter = inputroots.zip(listOfWeights[i].subList(start, end)).map { (inpn, wn) ->
+        for (index in (0 until outputNodeSize)) {
+
+            val intermediateInput = when (i) {
+                0 -> inputroots
+                else -> results[i - 1]
+            }
+
+            val start = index * intermediateInput.size
+            val end = start + intermediateInput.size
+
+            val inter = intermediateInput.zip(listOfWeights[i].subList(start, end)).map { (inpn, wn) ->
                 multiply {
                     put(inpn)
                     put(wn)
@@ -55,11 +80,19 @@ fun createSystem(input: DoubleArray, output: DoubleArray, vararg hiddenLayerSize
                 put(inter)
                 put(listOfBiases[i][index])
             }
+
+            endNodes.add(endNode)
         }
+
+        results.add(endNodes)
     }
+
+    return results
 }
 
 val ReLU: (Double) -> Double = { Math.max(0.0, it) }
+
+val dReLU: (Double) -> Double = { if (it > 0.0) 1.0 else if (it < 0.0) 0.0 else 0.5 }
 
 val softPlus: (Double) -> Double = { Math.log(1 + Math.exp(it)) }
 
@@ -83,5 +116,5 @@ val networkpart: (List<Double>, List<Double>, Double) -> Node = { inputs, weight
 class NonLinearNode : OperationNode() {
     override val valuef: (List<Double>) -> Double = { if (it.size != 1) throw Exception("For now only accepts 1 argument") else ReLU(it[0]) }
 
-    override val gradientf: (Double, Double) -> Double = { childGradientValue, _ -> if (childGradientValue <= 0.0) 0.0 else 1.0}
+    override val gradientf: (Double, Double) -> Double = { childGradientValue, _ -> if (childGradientValue <= 0.0) 0.0 else 1.0 }
 }
