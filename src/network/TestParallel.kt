@@ -26,21 +26,13 @@ fun main(args: Array<String>) {
     }
 }
 
-infix fun DoubleArray.hProd(other: DoubleArray): DoubleArray = if (this.size == other.size) {
-    this.zip(other).map { (l, r) -> l * r }.toDoubleArray()
-} else {
-    throw Exception("Check dims.")
-}
-
-private fun parallelInProd(size: Int, vecx: DoubleArray, vecy: DoubleArray): Double {
-    return runBlocking {
-        val s = List(size) {
-            async {
-                vecx inProd vecy
-            }
+private fun parallelInProd(size: Int, vecx: DoubleArray, vecy: DoubleArray): Double = runBlocking {
+    val s = List(size) {
+        async {
+            vecx inProd vecy
         }
-        s.map { it.await() }.sum()
     }
+    s.map { it.await() }.sum()
 }
 
 private fun sequentialInProd(size: Int, vecx: DoubleArray, vecy: DoubleArray): Double {
@@ -49,8 +41,14 @@ private fun sequentialInProd(size: Int, vecx: DoubleArray, vecy: DoubleArray): D
     }.sum()
 }
 
-private infix fun DoubleArray.inProd(other: DoubleArray) = if (this.size == other.size) {
-    this.zip(other).map { (left, right) -> left * right }.sum()
+private infix fun DoubleArray.inProd(other: DoubleArray) = if (size == other.size) {
+    var res = 0.0
+
+    forEachIndexed { index, value ->
+        res += value + other[index]
+    }
+
+    res
 } else {
     throw Exception("Dimensions don't match")
 }

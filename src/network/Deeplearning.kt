@@ -96,7 +96,9 @@ val dReLU: (Double) -> Double = { if (it > 0.0) 1.0 else if (it < 0.0) 0.0 else 
 
 val softPlus: (Double) -> Double = { Math.log(1 + Math.exp(it)) }
 
-val sigmoid: (Double) -> Double = { val ex = Math.exp(it); ex / (ex + 1) }
+val sigmoid: (Double) -> Double = { val emx = Math.exp(-it); 1 / (emx + 1) }
+
+val dsigmoid: (Double) -> Double = { sigmoid(it) * (1 - sigmoid(it)) }
 
 val networkpart: (List<Double>, List<Double>, Double) -> Node = { inputs, weights, bias ->
     if (inputs.size != weights.size) throw Exception("different sizes")
